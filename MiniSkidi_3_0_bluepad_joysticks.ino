@@ -135,7 +135,7 @@ void moveCar(ControllerPtr ctl, int inputValue)
       case DOWN:
         rotateMotor(RIGHT_MOTOR, BACKWARD);
         rotateMotor(LEFT_MOTOR, BACKWARD);
-        
+
         Serial.printf("Moving backward\n");
         break;
 
@@ -143,7 +143,7 @@ void moveCar(ControllerPtr ctl, int inputValue)
         //ctl->setRumble(0x01 /* force */, 0x01 /* duration */);
         rotateMotor(RIGHT_MOTOR, BACKWARD);
         rotateMotor(LEFT_MOTOR, FORWARD);
-        
+
         Serial.printf("Moving left\n");
         break;
 
@@ -162,7 +162,7 @@ void moveCar(ControllerPtr ctl, int inputValue)
 
       case ARMUP:
         rotateMotor(ARM_MOTOR, FORWARD);
-        
+
         Serial.printf("Moving arm up\n");
         break;
 
@@ -360,7 +360,7 @@ void increment_claw(ControllerPtr ctl, int increment)
     auxControl(aux_pos);
     //delay(button_delay);
   }
-  else 
+  else
   {
     //ctl->setRumble(0x01 /* force */, 0x01 /* duration */);
     aux_pos -= increment;
@@ -372,29 +372,34 @@ void processGamepad(ControllerPtr ctl) {
     // There are different ways to query whether a button is pressed.
     // By query each button individually:
     //  a(), b(), x(), y(), l1(), etc...
+    int move_command = STOP;
 
-    int minimal_control_input_bucket = 100;
+    int minimal_control_input_bucket = 200;
     int right_x = ctl->axisRX();       // (-511 - 512) right X axis
     int right_y =ctl->axisRY();       // (-511 - 512) right Y axis
     if (abs(right_y)>=minimal_control_input_bucket)
     {
-        int n_steps = right_y/200;
-        Serial.println("Incrementing bucket ");
-        Serial.println(n_steps);
-
-        
-        increment_bucket(ctl,-1*n_steps);
+        if (right_y > 0) move_command = ARMUP;
+        if (right_y < 0) move_command = ARMDOWN;
     }
-    
+
     // THis codeblock moves the bucket via joysticks
     if (abs(right_x)>=minimal_control_input_bucket)
     {
       int n_steps = right_x/200; // Scale to appropriate speed
-      Serial.println("Incrementing claw ");
+      Serial.println("Incrementing bucket ");
       Serial.println(n_steps);
-      increment_claw(ctl,-1*n_steps);
+
+      // Slow down the bucket movement using millis()
+      unsigned long currentTime = millis();
+      static unsigned long prevTime = currentTime;
+      if (currentTime - prevTime >= 15) { // Adjust the interval as needed
+          increment_bucket(ctl, -1 * n_steps);
+          prevTime = currentTime;
+      }
+
     }
-    
+
     // This code block moves the claw via R2 and L2
     int throttle = ctl->throttle();
     int brake = ctl->brake();
@@ -436,7 +441,6 @@ void processGamepad(ControllerPtr ctl) {
       return;
     }
 
-    int move_command = STOP;
     int dpad_command = ctl->dpad();
 
 
@@ -444,12 +448,12 @@ void processGamepad(ControllerPtr ctl) {
     int left_y = ctl->axisY();        // (-511 - 512) left Y axis
 
     if (dpad_command != 0x00)
-    { 
+    {
       if (dpad_command == 0x04) move_command = RIGHT;
       else if (dpad_command == 0x02) move_command = DOWN;
       else if (dpad_command == 0x01) move_command = UP;
       else if (dpad_command == 0x08) move_command = LEFT;
-      
+
     }
     int minimal_control_input = 200;
     if (abs(left_x)>=minimal_control_input)
